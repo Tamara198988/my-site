@@ -1,75 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
     <title>Da Nang Moto Run</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #333; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; }
-        canvas { background: #87CEEB; border: 4px solid #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        body { margin: 0; overflow: hidden; background: #1a2a44; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; }
+        canvas { background: #000; border: 4px solid #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
+<canvas id="gameCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Настройки экрана
+// --- НАСТРОЙКИ ЭКРАНА ---
 canvas.width = 800;
 canvas.height = 400;
 
-// Игровые переменные
-let score = 0;
-let gameSpeed = 5;
-let isGameOver = false;
+// --- ЗАГРУЗКА КАРТИНОК ---
+const backgroundImg = new Image();
+backgroundImg.src = 'bg_dragon_bridge.png'; // Тот самый файл, который ты загрузила
 
-// Объект байка (игрок)
+// --- ПЕРЕМЕННЫЕ ИГРЫ ---
+let score = 0;
+let isGameOver = false;
+let bgScroll = 0;
+const bgSpeed = 3;
+
+// Игрок (байк)
 const bike = {
     x: 50,
     y: 300,
-    width: 100,
-    height: 60,
+    width: 80,
+    height: 50,
     dy: 0,
     jumpForce: 15,
     gravity: 0.8,
-    isGrounded: false,
-    color: 'black'
+    isGrounded: false
 };
 
 // Препятствия
 const obstacles = [];
-const obstacleTimer = 1500; // Появление каждые 1.5 сек
+let obstacleTimer = 1500;
 let lastTime = 0;
 
 // Управление
 window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && bike.isGrounded) {
-        bike.dy = -bike.jumpForce;
-        bike.isGrounded = false;
-    }
-    if (e.code === 'Space' && isGameOver) {
-        location.reload(); // Перезагрузка при проигрыше
+    if (e.code === 'Space') {
+        if (isGameOver) {
+            location.reload();
+        } else if (bike.isGrounded) {
+            bike.dy = -bike.jumpForce;
+            bike.isGrounded = false;
+        }
     }
 });
-
-function drawBike() {
-    // Тело байка
-    ctx.fillStyle = bike.color;
-    ctx.fillRect(bike.x, bike.y, bike.width, bike.height);
-    
-    // Колеса
-    ctx.fillStyle = "#333";
-    ctx.beginPath();
-    ctx.arc(bike.x + 20, bike.y + 60, 15, 0, Math.PI * 2);
-    ctx.arc(bike.x + 80, bike.y + 60, 15, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Заглушка для персонажей (водитель в комбинезоне и подруга в красной юбке)
-    ctx.fillStyle = "blue"; // Водитель
-    ctx.fillRect(bike.x + 40, bike.y - 30, 20, 40);
-    ctx.fillStyle = "red";  // Подруга
-    ctx.fillRect(bike.x + 15, bike.y - 25, 20, 35);
-}
 
 function spawnObstacle() {
     const types = ['люк', 'человек'];
@@ -89,7 +76,15 @@ function update(time) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Гравитация и прыжок
+    // 1. Движение и отрисовка фона (бесконечный цикл)
+    bgScroll -= bgSpeed;
+    if (backgroundImg.complete) {
+        const tempScroll = Math.abs(bgScroll) % backgroundImg.width;
+        ctx.drawImage(backgroundImg, -tempScroll, 0, backgroundImg.width, canvas.height);
+        ctx.drawImage(backgroundImg, backgroundImg.width - tempScroll, 0, backgroundImg.width, canvas.height);
+    }
+
+    // 2. Гравитация игрока
     bike.dy += bike.gravity;
     bike.y += bike.dy;
 
@@ -99,13 +94,13 @@ function update(time) {
         bike.isGrounded = true;
     }
 
-    // Отрисовка дороги
-    ctx.fillStyle = "#777";
-    ctx.fillRect(0, 360, canvas.width, 40);
+    // 3. Отрисовка игрока (пока блоком, потом заменим на картинку байка)
+    ctx.fillStyle = "blue";
+    ctx.fillRect(bike.x, bike.y, bike.width, bike.height);
+    ctx.fillStyle = "white";
+    ctx.fillText("БАЙК", bike.x + 20, bike.y + 30);
 
-    drawBike();
-
-    // Работа с препятствиями
+    // 4. Препятствия
     if (time - lastTime > obstacleTimer) {
         spawnObstacle();
         lastTime = time;
@@ -113,16 +108,13 @@ function update(time) {
 
     for (let i = obstacles.length - 1; i >= 0; i--) {
         const o = obstacles[i];
-        o.x -= gameSpeed;
+        o.x -= bgSpeed + 2;
 
         ctx.fillStyle = o.color;
         ctx.fillRect(o.x, o.y, o.width, o.height);
 
         // Проверка столкновения
-        if (bike.x < o.x + o.width &&
-            bike.x + bike.width > o.x &&
-            bike.y < o.y + o.height &&
-            bike.y + bike.height > o.y) {
+        if (bike.x < o.x + o.width && bike.x + bike.width > o.x && bike.y < o.y + o.height && bike.y + bike.height > o.y) {
             isGameOver = true;
         }
 
@@ -132,9 +124,10 @@ function update(time) {
         }
     }
 
-    // Очки
+    // 5. Интерфейс
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
+    ctx.textAlign = "left";
     ctx.fillText(`Очки: ${score}`, 20, 40);
 
     if (isGameOver) {
